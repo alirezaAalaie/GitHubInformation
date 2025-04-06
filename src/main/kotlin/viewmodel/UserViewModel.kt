@@ -29,14 +29,14 @@ class UserViewModel(private val userService: UserService) {
 
     fun fetchUser(username: String) {
         viewModelScope.launch {
-            _users.value = emptyList()
             _isLoading.value = true
             try {
                 val user = userService.getUser(username)
                 _users.value = listOf(user)
                 _error.value = null
             } catch (ex: HttpException) {
-                _error.value = if (ex.code() == 404) "Failed to fetch user: username not found" else throw ex
+                _error.value =
+                    if (ex.code() == 404) "Failed to fetch user: username not found" else "Failed to fetch user with message: ${ex.message()} and code ${ex.code()}"
             } catch (e: Exception) {
                 _error.value = "Failed to fetch user: ${e.message}"
             } finally {
@@ -47,12 +47,12 @@ class UserViewModel(private val userService: UserService) {
 
     fun fetchAllUsers() {
         viewModelScope.launch {
-            _users.value = emptyList()
             _isLoading.value = true
             try {
-                _users.value = userService.getAllUsers()
-                if (_users.value.isEmpty()) {
-                    _error.value = "No users found"
+                val users = userService.getAllUsers()
+                _users.value = users
+                if (users.isEmpty()) {
+                    _error.value = "No user in cache"
                 } else {
                     _error.value = null
                 }
@@ -66,7 +66,6 @@ class UserViewModel(private val userService: UserService) {
 
     fun searchUser(username: String) {
         viewModelScope.launch {
-            _users.value = emptyList()
             _isLoading.value = true
             try {
                 val user = userService.searchUserByUsername(username)
@@ -74,7 +73,7 @@ class UserViewModel(private val userService: UserService) {
                     _users.value = listOf(it)
                     _error.value = null
                 } ?: run {
-                    _error.value = "User not found"
+                    _error.value = "No users found"
                 }
             } catch (e: Exception) {
                 _error.value = "Search failed: ${e.message}"
@@ -87,19 +86,29 @@ class UserViewModel(private val userService: UserService) {
     fun searchRepository(repoName: String) {
         viewModelScope.launch {
             _isLoading.value = true
-            _repos.value = emptyList()
             try {
                 val repo = userService.searchRepositoryByName(repoName)
-                repo.let {
-                    _repos.value = it
+                _repos.value = repo
+                if (repo.isEmpty()) {
+                    _error.value = "No repositories found for $repoName"
+                } else {
                     _error.value = null
                 }
+
             } catch (e: Exception) {
                 _error.value = "Search failed: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
         }
+    }
+
+    fun clearState() {
+        _users.value = emptyList()
+        _repos.value = emptyList()
+        _error.value = null
+        _isLoading.value = false
+
     }
 
 }

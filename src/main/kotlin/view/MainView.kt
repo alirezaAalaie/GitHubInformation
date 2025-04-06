@@ -7,8 +7,7 @@ import java.util.*
 class MainView(private val viewModel: UserViewModel) {
     private val scanner = Scanner(System.`in`)
     private val scope = CoroutineScope(Dispatchers.Default)
-    private var currentUserCollectJob: Job? = null
-    private var currentReposCollectJob: Job? = null
+    private var currentCollectJob: Job? = null
 
     fun start() {
         scope.launch {
@@ -56,14 +55,14 @@ class MainView(private val viewModel: UserViewModel) {
     }
 
     private fun fetchUser() {
-        currentUserCollectJob?.cancel()
+        currentCollectJob?.cancel()
+        viewModel.clearState()
 
         print("Enter GitHub username: ")
         val username = scanner.nextLine().trim()
         if (username.isNotEmpty()) {
             viewModel.fetchUser(username)
-
-            currentUserCollectJob = scope.launch {
+            currentCollectJob = scope.launch {
                 viewModel.users.collect { users ->
                     users.lastOrNull()?.let {
                         println("\n\u001B[32mUser fetched successfully:\u001B[0m")
@@ -77,10 +76,10 @@ class MainView(private val viewModel: UserViewModel) {
     }
 
     private fun showAllUsers() {
-        currentUserCollectJob?.cancel()
-
+        currentCollectJob?.cancel()
+        viewModel.clearState()
         viewModel.fetchAllUsers()
-        currentUserCollectJob = scope.launch {
+        currentCollectJob = scope.launch {
             viewModel.users.collect { users ->
                 if (users.isNotEmpty()) {
                     println("\n\u001B[34mCached Users (${users.size}):\u001B[0m")
@@ -93,15 +92,15 @@ class MainView(private val viewModel: UserViewModel) {
     }
 
     private fun searchUser() {
-        currentUserCollectJob?.cancel()
+        currentCollectJob?.cancel()
+        viewModel.clearState()
 
         print("Enter username to search: ")
         val query = scanner.nextLine().trim()
         if (query.isNotEmpty()) {
             viewModel.searchUser(query)
-
-            currentUserCollectJob = scope.launch {
-                viewModel.users.collect { users ->  // Only take the first emission
+            currentCollectJob = scope.launch {
+                viewModel.users.collect { users ->
                     if (users.isNotEmpty()) {
                         println("\nSearch Results:")
                         users.forEach { user ->
@@ -116,18 +115,16 @@ class MainView(private val viewModel: UserViewModel) {
     }
 
     private fun searchRepositories() {
-        currentReposCollectJob?.cancel()
+        currentCollectJob?.cancel()
+        viewModel.clearState()
 
         print("Enter repository name to search: ")
         val query = scanner.nextLine().trim()
         if (query.isNotEmpty()) {
             viewModel.searchRepository(query)
-
-            currentReposCollectJob = scope.launch {
-                viewModel.repos.collect { repos ->  // Only take the first emission
-                    if (repos.isEmpty()) {
-                        println("\nNo repositories found matching '$query'")
-                    } else {
+            currentCollectJob = scope.launch {
+                viewModel.repos.collect { repos ->
+                    if (repos.isNotEmpty()) {
                         println("\nFound ${repos.size} repositories:")
                         repos.forEachIndexed { index, repo ->
                             println("\u001B[36m${index + 1}. ${repo.fullName}\u001B[0m")
